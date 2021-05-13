@@ -28,30 +28,32 @@ app.use(bodyParser.raw());
 
 // Set Content-Type for all responses for these routes.
 
-app.use(function (req, res, next) {
-
-    // Website you wish to allow to connect
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    // Request methods you wish to allow
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-
-    // Request headers you wish to allow
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
-    // Set to true if you need the website to include cookies in the requests sent
-    // to the API (e.g. in case you use sessions)
-    res.setHeader('Access-Control-Allow-Credentials', true);
-
-    // Pass to next layer of middleware
-    next();
-});
 
 
-app.use((req, res, next) => {
+function setHeaders(req, res, next) {
+
+  // Website you wish to allow to connect
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // Request methods you wish to allow
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+
+  // Request headers you wish to allow
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+
+  // Set to true if you need the website to include cookies in the requests sent
+  // to the API (e.g. in case you use sessions)
+  res.setHeader('Access-Control-Allow-Credentials', true);
+
+  // Pass to next layer of middleware
+  next();
+}
+
+function setContentType(req, res, next){
   res.set('Content-Type', 'text/html');
   next();
-});
+}
+
 
 // Create a Winston logger that streams to Stackdriver Logging.
 const winston = require('winston');
@@ -153,7 +155,7 @@ const createPoolAndEnsureSchema = async () =>
 
 let pool;
 
-app.use(async (req, res, next) => {
+async function  createDBConnection (req, res, next){
   if (pool) {
     return next();
   }
@@ -164,7 +166,13 @@ app.use(async (req, res, next) => {
     logger.error(err);
     return next(err);
   }
-});
+}
+
+app.use('*', 
+setHeaders,
+setContentType,
+createDBConnection
+);
 
 
 app.post('/accounts/user', async (req, res) =>  {
@@ -185,6 +193,26 @@ res.json(x);
       .end();
   }
 });
+
+
+app.post('/accounts/all', async (req, res) =>  {
+const postObj=req.body
+
+  try {
+    const tabsQuery = pool.query("select * from accounts;");
+        let x = await tabsQuery;
+res.json(x);
+} catch (err) {
+        console.error(err);
+    res
+      .status(500)
+      .send(
+        'Unable to load page. Please check the application logs for more details.'
+      )
+      .end();
+  }
+});
+
 
 app.post('/users/roles', async (req, res) =>  {
 const postObj=req.body
